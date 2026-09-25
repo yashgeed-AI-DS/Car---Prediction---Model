@@ -536,7 +536,7 @@ X_test
 
 def get_metrics(y_true, y_pred):
 
-```
+
 return {
     "R² Score": round(
         r2_score(
@@ -638,7 +638,7 @@ figsize=(18, 5)
 
 models_plot = [
 
-```
+
 (
     "Linear Regression",
     y_pred_linear
