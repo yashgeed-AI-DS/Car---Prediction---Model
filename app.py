@@ -143,12 +143,12 @@ numeric_columns = [
 
 for column in numeric_columns:
 
-```
+
 df_raw[column] = pd.to_numeric(
     df_raw[column],
     errors="coerce"
 )
-```
+
 
 # ============================================================
 
@@ -390,7 +390,7 @@ ax2.set_title("Log Price Distribution")
 st.pyplot(fig2)
 
 plt.close(fig2)
-```
+
 
 # ============================================================
 
@@ -565,11 +565,10 @@ return {
         4
     )
 }
-```
 
 metrics = {
 
-```
+
 "Linear Regression": get_metrics(
     y_test,
     y_pred_linear
@@ -584,7 +583,7 @@ metrics = {
     y_test,
     y_pred_lasso
 )
-```
+
 
 }
 
@@ -654,7 +653,6 @@ models_plot = [
     "Lasso Regression",
     y_pred_lasso
 )
-```
 
 ]
 
@@ -663,7 +661,7 @@ axes,
 models_plot
 ):
 
-```
+
 ax.scatter(
     y_test,
     y_pred,
@@ -698,7 +696,7 @@ ax.grid(
     True,
     alpha=0.3
 )
-```
+
 
 plt.tight_layout()
 
@@ -733,7 +731,7 @@ with st.form(
 "car_prediction_form"
 ):
 
-```
+
 st.markdown(
     "### 🔧 Car Details"
 )
@@ -908,7 +906,7 @@ submitted = st.form_submit_button(
     "🚀 Predict Car Price",
     use_container_width=True
 )
-```
+
 
 # ============================================================
 
@@ -918,7 +916,7 @@ submitted = st.form_submit_button(
 
 if submitted:
 
-```
+
 try:
 
     # ----------------------------------------------------
@@ -1126,7 +1124,7 @@ except Exception as e:
     st.code(
         str(e)
     )
-```
+
 
 # ============================================================
 
