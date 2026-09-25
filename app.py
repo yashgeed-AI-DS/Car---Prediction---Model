@@ -118,7 +118,7 @@ if col not in df_raw.columns
 if missing_columns:
 
 
-st.error(
+    st.error(
     f"❌ Missing columns in dataset: {', '.join(missing_columns)}"
 )
 
@@ -293,7 +293,7 @@ col1, col2 = st.columns(2)
 with col1:
 
 
-st.markdown("**Price Distribution**")
+    st.markdown("**Price Distribution**")
 
 fig1, ax1 = plt.subplots()
 
@@ -318,7 +318,7 @@ st.pyplot(fig1)
 with col2:
 
 
-st.markdown("**Log Price Distribution**")
+    st.markdown("**Log Price Distribution**")
 
 fig2, ax2 = plt.subplots()
 
