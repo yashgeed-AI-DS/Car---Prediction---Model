@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -172,4 +171,4 @@ st.markdown("---")
 st.caption(
     "Built with ❤️ using Python, Pandas, NumPy, Scikit-learn and Streamlit"
 )
-```
+
