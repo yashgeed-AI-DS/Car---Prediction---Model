@@ -1,1091 +1,290 @@
-import streamlit as st
-import pandas as pd
+"""
+AI Car Price Predictor — Streamlit App
+---------------------------------------
+Frontend/UI wraps the EXACT model pipeline trained in the notebook:
+  Features (order matters): Brand, Body, Mileage, EngineV, Engine Type, Registration, Year
+  Target:  Log_price = np.log(Price)  ->  Price = np.exp(prediction)
+  Model:   sklearn LinearRegression, saved as linear_regression_model.pkl (joblib)
+
+Categorical encoding reconstructs the same LabelEncoder mapping used in training
+(alphabetical order per column), verified against the notebook's printed output.
+"""
+
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import joblib
+import streamlit as st
 
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score, mean_squared_error
-from sklearn.preprocessing import LabelEncoder
-
-import warnings
-warnings.filterwarnings("ignore")
-
-# ============================================================
-
-# PAGE CONFIG
-
-# ============================================================
-
+# ----------------------------------------------------------------------------
+# Page config (must be first Streamlit call)
+# ----------------------------------------------------------------------------
 st.set_page_config(
-page_title="🚗 Car Price Predictor",
-page_icon="🚗",
-layout="wide"
+    page_title="AI Car Price Predictor",
+    page_icon="🚗",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# ============================================================
-
-# TITLE
-
-# ============================================================
-
-st.title("🚗 Used Car Price Prediction")
-
-st.markdown(
-"**Linear Regression vs Ridge vs Lasso** — "
-"Predict the price of a used car using Machine Learning."
-)
-
-st.markdown("---")
-
-# ============================================================
-
-# SIDEBAR
-
-# ============================================================
-
-st.sidebar.header("📁 Upload Dataset")
-
-uploaded_file = st.sidebar.file_uploader(
-"Upload your CSV file",
-type=["csv"],
-help="Upload the car sales dataset used for training."
-)
-
-# ============================================================
-
-# IF FILE IS NOT UPLOADED
-
-# ============================================================
-
-if uploaded_file is None:
-
-    st.info(
-    "👈 Please upload your car dataset from the sidebar."
-)
-
-st.markdown("""
-### Expected Columns
-
-| Column | Description |
-|---|---|
-| `Brand` | Car brand |
-| `Price` | Car price |
-| `Body` | Body type |
-| `Mileage` | Distance driven |
-| `EngineV` | Engine volume |
-| `Engine Type` | Fuel type |
-| `Registration` | Registration status |
-| `Year` | Manufacturing year |
-| `Model` | Car model |
-""")
-
-st.stop()
-
-
-# ============================================================
-
-# LOAD DATA
-
-# ============================================================
-
-@st.cache_data
-def load_data(file):
-    return pd.read_csv(file)
-
-df_raw = load_data(uploaded_file)
-
-# ============================================================
-
-# CHECK REQUIRED COLUMNS
-
-# ============================================================
-
-required_columns = [
-"Brand",
-"Price",
-"Body",
-"Mileage",
-"EngineV",
-"Engine Type",
-"Registration",
-"Year",
-"Model"
-]
-
-missing_columns = [
-col for col in required_columns
-if col not in df_raw.columns
-]
-
-if missing_columns:
-
-    st.error(
-    f"❌ Missing columns in dataset: "
-    f"{', '.join(missing_columns)}"
-)
-
-st.stop()
-
-# ============================================================
-
-# CONVERT IMPORTANT NUMERIC COLUMNS
-
-# ============================================================
-
-numeric_columns = [
-"Price",
-"Mileage",
-"EngineV",
-"Year"
-]
-
-for column in numeric_columns:
-
-
-    df_raw[column] = pd.to_numeric(
-    df_raw[column],
-    errors="coerce"
-)
-
-
-# ============================================================
-
-# RAW DATA
-
-# ============================================================
-
-st.subheader("📊 Raw Data Preview")
-
-st.dataframe(
-df_raw.head(10),
-use_container_width=True
-)
-
-st.caption(
-f"Dataset shape: {df_raw.shape[0]} rows × "
-f"{df_raw.shape[1]} columns"
-)
-
-# ============================================================
-
-# PREPROCESSING
-
-# ============================================================
-
-st.markdown("---")
-
-st.subheader("🔧 Data Preprocessing")
-
-df = df_raw.copy()
-
-with st.expander(
-"View Step-by-Step Preprocessing",
-expanded=False
-):
-
-
-# --------------------------------------------------------
-# STEP 1: REMOVE MISSING PRICE / ENGINEV
-# --------------------------------------------------------
-
-    before = len(df)
-
-df = df.dropna(
-    subset=["Price", "EngineV"]
-)
-
-removed = before - len(df)
-
-st.write(
-    f"✅ **Step 1:** Removed {removed} rows "
-    "with missing Price or EngineV."
-)
-
-
-# --------------------------------------------------------
-# STEP 2: REMOVE INVALID PRICE
-# --------------------------------------------------------
-
-before = len(df)
-
-df = df[df["Price"] > 0]
-
-removed = before - len(df)
-
-st.write(
-    f"✅ **Step 2:** Removed {removed} rows "
-    "where Price was zero or negative."
-)
-
-
-# --------------------------------------------------------
-# STEP 3: REMOVE ENGINEV OUTLIERS
-# --------------------------------------------------------
-
-before = len(df)
-
-df = df[df["EngineV"] <= 10]
-
-removed = before - len(df)
-
-st.write(
-    f"✅ **Step 3:** Removed {removed} rows "
-    "where EngineV > 10."
-)
-
-
-# --------------------------------------------------------
-# STEP 4: LOG TRANSFORMATION
-# --------------------------------------------------------
-
-df["Log_price"] = np.log(
-    df["Price"]
-)
-
-st.write(
-    "✅ **Step 4:** Applied log transformation "
-    "`Log_price = log(Price)`."
-)
-
-
-# --------------------------------------------------------
-# CATEGORICAL COLUMNS
-# --------------------------------------------------------
-
-categorical_columns = [
-    "Brand",
-    "Body",
-    "Engine Type",
-    "Registration"
-]
-
-
-# --------------------------------------------------------
-# SAVE ORIGINAL CATEGORIES
-# --------------------------------------------------------
-
-category_options = {}
-
-for column in categorical_columns:
-
-    category_options[column] = sorted(
-        df[column]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
-
-
-# --------------------------------------------------------
-# STEP 5: DROP MODEL AND PRICE
-# --------------------------------------------------------
-
-df = df.drop(
-    columns=["Model", "Price"]
-)
-
-st.write(
-    "✅ **Step 5:** Dropped `Model` and "
-    "original `Price`."
-)
-
-
-# --------------------------------------------------------
-# STEP 6: LABEL ENCODING
-# --------------------------------------------------------
-
-encoders = {}
-
-for column in categorical_columns:
-
-    encoder = LabelEncoder()
-
-    df[column] = encoder.fit_transform(
-        df[column].fillna("Unknown").astype(str)
-    )
-
-    encoders[column] = encoder
-
-
-st.write(
-    "✅ **Step 6:** Label encoded categorical columns:"
-)
-
-st.code(
-    ", ".join(categorical_columns)
-)
-
-
-st.success(
-f"Dataset ready: {df.shape[0]} rows × "
-f"{df.shape[1]} columns"
-)
-
-# ============================================================
-
-# EDA
-
-# ============================================================
-
-st.markdown("---")
-
-st.subheader("📈 Exploratory Data Analysis")
-
-col1, col2 = st.columns(2)
-
-# ============================================================
-
-# PRICE DISTRIBUTION
-
-# ============================================================
-
-with col1:
-
-
-    st.markdown("**Price Distribution**")
-
-fig1, ax1 = plt.subplots()
-
-ax1.hist(
-    df_raw["Price"].dropna(),
-    bins=50,
-    edgecolor="white"
-)
-
-ax1.set_xlabel("Price")
-ax1.set_ylabel("Count")
-ax1.set_title("Original Price Distribution")
-
-st.pyplot(fig1)
-
-plt.close(fig1)
-
-
-# ============================================================
-
-# LOG PRICE DISTRIBUTION
-
-# ============================================================
-
-with col2:
-
-
-    st.markdown("**Log Price Distribution**")
-
-fig2, ax2 = plt.subplots()
-
-ax2.hist(
-    df["Log_price"],
-    bins=50,
-    edgecolor="white"
-)
-
-ax2.set_xlabel("Log Price")
-ax2.set_ylabel("Count")
-ax2.set_title("Log Price Distribution")
-
-st.pyplot(fig2)
-
-plt.close(fig2)
-
-
-# ============================================================
-
-# CORRELATION HEATMAP
-
-# ============================================================
-
-st.markdown("**Correlation Heatmap**")
-
-fig3, ax3 = plt.subplots(
-figsize=(10, 5)
-)
-
-sns.heatmap(
-df.corr(numeric_only=True),
-annot=True,
-fmt=".2f",
-cmap="coolwarm",
-ax=ax3
-)
-
-st.pyplot(fig3)
-
-plt.close(fig3)
-
-# ============================================================
-
-# MODEL PARAMETERS
-
-# ============================================================
-
-st.markdown("---")
-
-st.subheader("🤖 Model Training & Comparison")
-
-st.sidebar.header("⚙️ Model Parameters")
-
-test_size = st.sidebar.slider(
-"Test Set Size (%)",
-min_value=10,
-max_value=40,
-value=20,
-step=5
-) / 100
-
-random_state = st.sidebar.number_input(
-"Random State",
-value=42,
-min_value=0
-)
-
-ridge_alpha = st.sidebar.slider(
-"Ridge α",
-0.01,
-100.0,
-value=1.0,
-step=0.1
-)
-
-lasso_alpha = st.sidebar.slider(
-"Lasso α",
-0.0001,
-1.0,
-value=0.001,
-step=0.0001,
-format="%.4f"
-)
-
-# ============================================================
-
-# TRAINING DATA
-
-# ============================================================
-
-X = df.drop(
-["Log_price"],
-axis=1
-)
-
-y = df["Log_price"]
-
-X_train, X_test, y_train, y_test = train_test_split(
-X,
-y,
-test_size=test_size,
-random_state=int(random_state)
-)
-
-# ============================================================
-
-# TRAIN MODELS
-
-# ============================================================
-
-linear_reg = LinearRegression()
-
-ridge_reg = Ridge(
-alpha=ridge_alpha
-)
-
-lasso_reg = Lasso(
-alpha=lasso_alpha
-)
-
-linear_reg.fit(
-X_train,
-y_train
-)
-
-ridge_reg.fit(
-X_train,
-y_train
-)
-
-lasso_reg.fit(
-X_train,
-y_train
-)
-
-# ============================================================
-
-# PREDICTIONS
-
-# ============================================================
-
-y_pred_linear = linear_reg.predict(
-X_test
-)
-
-y_pred_ridge = ridge_reg.predict(
-X_test
-)
-
-y_pred_lasso = lasso_reg.predict(
-X_test
-)
-
-# ============================================================
-
-# METRICS
-
-# ============================================================
-
-def get_metrics(y_true, y_pred):
-
-
-    return {
-    "R² Score": round(
-        r2_score(
-            y_true,
-            y_pred
-        ),
-        4
-    ),
-
-    "RMSE": round(
-        np.sqrt(
-            mean_squared_error(
-                y_true,
-                y_pred
-            )
-        ),
-        4
-    ),
-
-    "MAE": round(
-        np.mean(
-            np.abs(
-                y_true - y_pred
-            )
-        ),
-        4
-    )
+# ----------------------------------------------------------------------------
+# Prediction-pipeline constants (do NOT touch — mirrors the notebook exactly)
+# ----------------------------------------------------------------------------
+MODEL_PATH = "linear_regression_model.pkl"
+
+# LabelEncoder assigns integers in alphabetical order of the categories it saw.
+BRAND_MAP = {
+    "Audi": 0, "BMW": 1, "Mercedes-Benz": 2, "Mitsubishi": 3,
+    "Renault": 4, "Toyota": 5, "Volkswagen": 6,
 }
-
-metrics = {
-
-
-"Linear Regression": get_metrics(
-    y_test,
-    y_pred_linear
-),
-
-"Ridge Regression": get_metrics(
-    y_test,
-    y_pred_ridge
-),
-
-"Lasso Regression": get_metrics(
-    y_test,
-    y_pred_lasso
-)
-
-
+BODY_MAP = {
+    "crossover": 0, "hatch": 1, "other": 2, "sedan": 3, "vagon": 4, "van": 5,
 }
-
-metrics_df = (
-pd.DataFrame(metrics)
-.T
-.reset_index()
-.rename(
-columns={
-"index": "Model"
-}
-)
-)
-
-# ============================================================
-
-# MODEL COMPARISON
-
-# ============================================================
-
-st.markdown("### 📋 Model Comparison")
-
-st.dataframe(
-metrics_df,
-use_container_width=True
-)
-
-best_model = metrics_df.loc[
-metrics_df["R² Score"].idxmax(),
-"Model"
-]
-
-st.success(
-f"🏆 Highest R² Score: **{best_model}**"
-)
-
-# ============================================================
-
-# ACTUAL VS PREDICTED
-
-# ============================================================
-
-st.markdown("---")
-
-st.subheader("📉 Actual vs Predicted")
-
-fig, axes = plt.subplots(
-1,
-3,
-figsize=(18, 5)
-)
-
-models_plot = [
-
-
-(
-    "Linear Regression",
-    y_pred_linear
-),
-
-(
-    "Ridge Regression",
-    y_pred_ridge
-),
-
-(
-    "Lasso Regression",
-    y_pred_lasso
-)
-
-]
-
-for ax, (name, y_pred) in zip(
-axes,
-models_plot
-):
-
-
-    ax.scatter(
-    y_test,
-    y_pred,
-    alpha=0.4,
-    s=15
-)
-
-ax.plot(
-    [
-        y_test.min(),
-        y_test.max()
-    ],
-    [
-        y_test.min(),
-        y_test.max()
-    ],
-    "r--",
-    lw=2
-)
-
-ax.set_xlabel(
-    "Actual Log Price"
-)
-
-ax.set_ylabel(
-    "Predicted Log Price"
-)
-
-ax.set_title(name)
-
-ax.grid(
-    True,
-    alpha=0.3
-)
-
-
-plt.tight_layout()
-
-st.pyplot(fig)
-
-plt.close(fig)
-
-# ============================================================
-
-# INTERACTIVE CAR PRICE PREDICTION
-
-# ============================================================
-
-st.markdown("---")
-
-st.subheader(
-"🚗 Predict Price of Your Car"
-)
-
-st.markdown(
-"Enter the details of the car using "
-"the interactive controls below."
-)
-
-# ============================================================
-
-# PREDICTION FORM
-
-# ============================================================
-
-with st.form(
-"car_prediction_form"
-):
-
-
-    st.markdown(
-    "### 🔧 Car Details"
-)
-
-
-# --------------------------------------------------------
-# ROW 1
-# --------------------------------------------------------
-
-col1, col2, col3 = st.columns(3)
-
-
-# BRAND
-
-with col1:
-
-    selected_brand = st.selectbox(
-        "🏷️ Brand",
-        category_options["Brand"]
-    )
-
-
-# BODY
-
-with col2:
-
-    selected_body = st.selectbox(
-        "🚘 Body Type",
-        category_options["Body"]
-    )
-
-
-# ENGINE TYPE
-
-with col3:
-
-    selected_engine_type = st.selectbox(
-        "⛽ Engine Type",
-        category_options["Engine Type"]
-    )
-
-
-# --------------------------------------------------------
-# ROW 2
-# --------------------------------------------------------
-
-col1, col2, col3 = st.columns(3)
-
-
-# REGISTRATION
-
-with col1:
-
-    selected_registration = st.selectbox(
-        "📄 Registration",
-        category_options["Registration"]
-    )
-
-
-# MILEAGE
-
-with col2:
-
-    mileage_min = int(
-        max(
-            0,
-            df_raw["Mileage"].min()
-        )
-    )
-
-    mileage_max = int(
-        df_raw["Mileage"].max()
-    )
-
-    mileage_default = int(
-        df_raw["Mileage"].median()
-    )
-
-    mileage = st.slider(
-        "🛣️ Mileage",
-        min_value=mileage_min,
-        max_value=mileage_max,
-        value=mileage_default
-    )
-
-
-# ENGINE VOLUME
-
-with col3:
-
-    engine_min = float(
-        max(
-            0.1,
-            df_raw["EngineV"].min()
-        )
-    )
-
-    engine_max = float(
-        min(
-            10.0,
-            df_raw["EngineV"].max()
-        )
-    )
-
-    engine_default = float(
-        df_raw["EngineV"].median()
-    )
-
-    engine_default = min(
-        max(
-            engine_default,
-            engine_min
-        ),
-        engine_max
-    )
-
-    engine_volume = st.slider(
-        "🔧 Engine Volume (L)",
-        min_value=engine_min,
-        max_value=engine_max,
-        value=engine_default,
-        step=0.1
-    )
-
-
-# --------------------------------------------------------
-# YEAR
-# --------------------------------------------------------
-
-year_min = int(
-    df_raw["Year"].min()
-)
-
-year_max = int(
-    df_raw["Year"].max()
-)
-
-year_default = int(
-    df_raw["Year"].median()
-)
-
-year = st.slider(
-    "📅 Manufacturing Year",
-    min_value=year_min,
-    max_value=year_max,
-    value=year_default
-)
-
-
-# --------------------------------------------------------
-# MODEL CHOICE
-# --------------------------------------------------------
-
-model_choice = st.selectbox(
-    "🤖 Select Prediction Model",
-    [
-        "Linear Regression",
-        "Ridge Regression",
-        "Lasso Regression"
+ENGINE_TYPE_MAP = {"Diesel": 0, "Gas": 1, "Other": 2, "Petrol": 3}
+REGISTRATION_MAP = {"no": 0, "yes": 1}
+
+FEATURE_ORDER = ["Brand", "Body", "Mileage", "EngineV", "Engine Type", "Registration", "Year"]
+
+
+@st.cache_resource(show_spinner=False)
+def load_model():
+    return joblib.load(MODEL_PATH)
+
+
+def predict_price(model, brand, body, mileage, enginev, engine_type, registration, year):
+    """Runs the exact same encoding + prediction + inverse-log-transform as the notebook."""
+    row = [
+        BRAND_MAP[brand],
+        BODY_MAP[body],
+        mileage,
+        enginev,
+        ENGINE_TYPE_MAP[engine_type],
+        REGISTRATION_MAP[registration],
+        year,
     ]
-)
+    log_price_pred = model.predict([row])[0]
+    price_pred = np.exp(log_price_pred)  # inverse of np.log used in training
+    return price_pred
 
 
-st.markdown("")
+# ----------------------------------------------------------------------------
+# Styling — dark, glassmorphism, premium SaaS look
+# ----------------------------------------------------------------------------
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+    html, body, [class*="css"]  { font-family: 'Inter', sans-serif; }
 
-# --------------------------------------------------------
-# SUBMIT BUTTON
-# --------------------------------------------------------
+    .stApp {
+        background: radial-gradient(circle at 15% 0%, #1a2035 0%, #0d1117 45%, #090b10 100%);
+        color: #e6e9ef;
+    }
 
-submitted = st.form_submit_button(
-    "🚀 Predict Car Price",
-    use_container_width=True
-)
+    #MainMenu, footer, header { visibility: hidden; }
 
+    .hero {
+        text-align: center;
+        padding: 2.6rem 1rem 2rem 1rem;
+    }
+    .hero-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 999px;
+        background: rgba(99, 179, 237, 0.12);
+        border: 1px solid rgba(99, 179, 237, 0.35);
+        color: #7fd6ff;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        margin-bottom: 1rem;
+    }
+    .hero-title {
+        font-size: 2.6rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #ffffff 0%, #9fd3ff 60%, #6c9eff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+    }
+    .hero-subtitle {
+        color: #a3adc2;
+        font-size: 1.05rem;
+        margin-top: 0.6rem;
+    }
 
-# ============================================================
-# PREDICTION
-# ============================================================
+    .glass-card {
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 1.8rem 1.9rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(6px);
+        margin-bottom: 1.4rem;
+    }
+    .section-label {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #9fd3ff;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 0.6rem;
+        margin-top: 0.4rem;
+    }
+    .card-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #f2f4f8;
+        margin-bottom: 1.1rem;
+    }
 
-if submitted:
+    div[data-testid="stButton"] > button {
+        width: 100%;
+        background: linear-gradient(90deg, #3b82f6 0%, #6c5ce7 100%);
+        color: white;
+        font-weight: 700;
+        font-size: 1.05rem;
+        padding: 0.75rem 0;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    div[data-testid="stButton"] > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 26px rgba(108, 92, 231, 0.45);
+        color: white;
+        border: none;
+    }
 
+    .result-card {
+        text-align: center;
+        padding: 2rem 1.5rem;
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(108,92,231,0.12) 100%);
+        border: 1px solid rgba(124, 168, 255, 0.35);
+        box-shadow: 0 10px 34px rgba(59, 130, 246, 0.18);
+    }
+    .result-label {
+        color: #a9c7ff;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+    .result-value {
+        font-size: 2.8rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin: 0.3rem 0;
+    }
+    .result-note {
+        color: #93a1b8;
+        font-size: 0.85rem;
+    }
+
+    .footer-text {
+        text-align: center;
+        color: #6b7385;
+        font-size: 0.85rem;
+        padding: 1.6rem 0 0.6rem 0;
+    }
+
+    section[data-testid="stSidebar"] {
+        background: #0d1117;
+        border-right: 1px solid rgba(255,255,255,0.06);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ----------------------------------------------------------------------------
+# Sidebar
+# ----------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("### 🧠 About the Model")
+    st.markdown(
+        "- Machine Learning based car price prediction\n"
+        "- Built with **Python**\n"
+        "- Built with **Streamlit**\n"
+        "- Trained using Linear, Ridge & Lasso Regression — **Linear Regression** selected as the best performer"
+    )
+    st.markdown("---")
+    st.markdown("### 🛠️ Project Technologies")
+    st.markdown("- Python\n- Pandas\n- NumPy\n- Scikit-learn\n- Streamlit")
+    st.markdown("---")
+    st.caption("This tool provides an estimate only, based on patterns learned from historical listings.")
+
+# ----------------------------------------------------------------------------
+# Hero section
+# ----------------------------------------------------------------------------
+st.markdown("""
+<div class="hero">
+    <div class="hero-badge">⚡ Powered by Machine Learning</div>
+    <div class="hero-title">AI Car Price Predictor</div>
+    <div class="hero-subtitle">Predict your car's estimated market value using Machine Learning.</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ----------------------------------------------------------------------------
+# Input form
+# ----------------------------------------------------------------------------
+st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.markdown('<div class="card-title">🚗 Enter Car Details</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="section-label">Vehicle Information</div>', unsafe_allow_html=True)
+c1, c2, c3 = st.columns(3)
+with c1:
+    brand = st.selectbox("Brand", list(BRAND_MAP.keys()), help="Manufacturer of the vehicle")
+with c2:
+    body = st.selectbox("Body Type", list(BODY_MAP.keys()), help="Body style of the car")
+with c3:
+    year = st.number_input("Year", min_value=1960, max_value=2026, value=2012, step=1,
+                            help="Manufacturing year")
+
+st.markdown('<div class="section-label">Engine & Registration</div>', unsafe_allow_html=True)
+c4, c5, c6 = st.columns(3)
+with c4:
+    engine_type = st.selectbox("Engine Type", list(ENGINE_TYPE_MAP.keys()), help="Fuel/engine type")
+with c5:
+    enginev = st.number_input("Engine Volume (L)", min_value=0.0, max_value=10.0, value=2.0,
+                               step=0.1, help="Engine displacement in liters (0–10)")
+with c6:
+    registration = st.selectbox("Registered", list(REGISTRATION_MAP.keys()),
+                                 help="Is the car currently registered?")
+
+st.markdown('<div class="section-label">Usage</div>', unsafe_allow_html=True)
+mileage = st.number_input("Mileage (in thousands of km/miles)", min_value=0, max_value=1000,
+                           value=150, step=1, help="Total distance the car has traveled")
+
+st.markdown("<br>", unsafe_allow_html=True)
+predict_clicked = st.button("🔮 Predict Car Price")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ----------------------------------------------------------------------------
+# Prediction & result
+# ----------------------------------------------------------------------------
+if predict_clicked:
     try:
-
-        # ----------------------------------------------------
-        # ENCODE CATEGORICAL VALUES
-        # ----------------------------------------------------
-
-        brand_encoded = encoders["Brand"].transform(
-            [str(selected_brand)]
-        )[0]
-
-        body_encoded = encoders["Body"].transform(
-            [str(selected_body)]
-        )[0]
-
-        engine_type_encoded = encoders["Engine Type"].transform(
-            [str(selected_engine_type)]
-        )[0]
-
-        registration_encoded = encoders["Registration"].transform(
-            [str(selected_registration)]
-        )[0]
-
-
-        # ----------------------------------------------------
-        # CREATE INPUT DATAFRAME
-        # ----------------------------------------------------
-
-        input_data = {
-            "Brand": brand_encoded,
-            "Body": body_encoded,
-            "Mileage": mileage,
-            "EngineV": engine_volume,
-            "Engine Type": engine_type_encoded,
-            "Registration": registration_encoded,
-            "Year": year
-        }
-
-        input_df = pd.DataFrame([input_data])
-
-
-        # Make sure feature order is exactly
-        # the same as training data
-
-        input_df = input_df[X.columns]
-
-
-        # ----------------------------------------------------
-        # SELECT MODEL
-        # ----------------------------------------------------
-
-        model_map = {
-            "Linear Regression": linear_reg,
-            "Ridge Regression": ridge_reg,
-            "Lasso Regression": lasso_reg
-        }
-
-        selected_model = model_map[model_choice]
-
-
-        # ----------------------------------------------------
-        # PREDICT
-        # ----------------------------------------------------
-
-        log_prediction = selected_model.predict(
-            input_df
-        )[0]
-
-
-        # ----------------------------------------------------
-        # CONVERT LOG PRICE TO ORIGINAL PRICE
-        # ----------------------------------------------------
-
-        predicted_price = np.exp(log_prediction)
-
-
-        # ----------------------------------------------------
-        # DISPLAY RESULT
-        # ----------------------------------------------------
-
-        st.markdown("---")
-
-        st.subheader("🎯 Prediction Result")
-
-
-        result_col1, result_col2 = st.columns(2)
-
-
-        with result_col1:
-
-            st.metric(
-                "💰 Estimated Car Price",
-                f"${predicted_price:,.2f}"
+        model = load_model()
+        with st.spinner("Running the model..."):
+            predicted_price = predict_price(
+                model, brand, body, mileage, enginev, engine_type, registration, year
             )
 
+        st.success("Prediction complete!")
+        st.markdown(f"""
+        <div class="result-card">
+            <div class="result-label">Estimated Market Value</div>
+            <div class="result-value">${predicted_price:,.2f}</div>
+            <div class="result-note">Estimated value based on the information provided.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        with result_col2:
-
-            st.metric(
-                "🤖 Model Used",
-                model_choice
-            )
-
-
-        st.success(
-            "✅ Prediction completed successfully!"
-        )
-
-
-        st.info(
-            f"Log Price Prediction: {log_prediction:.4f}"
-        )
-
-
-        # ----------------------------------------------------
-        # SELECTED CAR DETAILS
-        # ----------------------------------------------------
-
-        st.markdown(
-            "### 🚘 Selected Car Details"
-        )
-
-
-        details_df = pd.DataFrame({
-
-            "Feature": [
-                "Brand",
-                "Body Type",
-                "Mileage",
-                "Engine Volume",
-                "Engine Type",
-                "Registration",
-                "Year"
-            ],
-
-            "Value": [
-                selected_brand,
-                selected_body,
-                f"{mileage:,} km",
-                f"{engine_volume:.1f} L",
-                selected_engine_type,
-                selected_registration,
-                year
-            ]
-        })
-
-
-        st.dataframe(
-            details_df,
-            hide_index=True,
-            use_container_width=True
-        )
-
-
-    except Exception as e:
-
+    except FileNotFoundError:
         st.error(
-            "❌ Prediction failed."
+            f"Model file `{MODEL_PATH}` was not found. Place the `linear_regression_model.pkl` "
+            "file (produced by the notebook's `joblib.dump`) in the same folder as this app."
         )
 
-        st.code(
-            str(e)
-        )
-
-
-# ============================================================
-# FOOTER
-# ============================================================
-
-st.markdown("---")
-
-st.caption(
-    "Built with ❤️ using Streamlit · "
-    "Linear Regression · Ridge Regression · "
-    "Lasso Regression"
-)
+# ----------------------------------------------------------------------------
+# Footer
+# ----------------------------------------------------------------------------
+st.markdown('<div class="footer-text">Built with Python & Streamlit | Machine Learning Project</div>',
+            unsafe_allow_html=True)
