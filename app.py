@@ -61,7 +61,7 @@ help="Upload the car sales dataset used for training."
 
 if uploaded_file is None:
 
-st.info(
+    st.info(
     "👈 Please upload your car dataset from the sidebar."
 )
 
@@ -92,7 +92,7 @@ st.stop()
 
 @st.cache_data
 def load_data(file):
-return pd.read_csv(file)
+    return pd.read_csv(file)
 
 df_raw = load_data(uploaded_file)
 
@@ -121,8 +121,7 @@ if col not in df_raw.columns
 
 if missing_columns:
 
-```
-st.error(
+    st.error(
     f"❌ Missing columns in dataset: "
     f"{', '.join(missing_columns)}"
 )
