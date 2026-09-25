@@ -732,7 +732,7 @@ with st.form(
 ):
 
 
-st.markdown(
+    st.markdown(
     "### 🔧 Car Details"
 )
 
