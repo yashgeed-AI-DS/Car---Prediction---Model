@@ -144,7 +144,7 @@ numeric_columns = [
 for column in numeric_columns:
 
 
-df_raw[column] = pd.to_numeric(
+    df_raw[column] = pd.to_numeric(
     df_raw[column],
     errors="coerce"
 )
