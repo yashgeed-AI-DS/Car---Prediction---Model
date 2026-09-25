@@ -909,233 +909,183 @@ submitted = st.form_submit_button(
 
 
 # ============================================================
-
 # PREDICTION
-
 # ============================================================
 
 if submitted:
 
-
     try:
 
-    # ----------------------------------------------------
-    # ENCODE CATEGORICAL VALUES
-    # ----------------------------------------------------
+        # ----------------------------------------------------
+        # ENCODE CATEGORICAL VALUES
+        # ----------------------------------------------------
 
-        brand_encoded = encoders[
-        "Brand"
-    ].transform(
-        [str(selected_brand)]
-    )[0]
+        brand_encoded = encoders["Brand"].transform(
+            [str(selected_brand)]
+        )[0]
 
+        body_encoded = encoders["Body"].transform(
+            [str(selected_body)]
+        )[0]
 
-    body_encoded = encoders[
-        "Body"
-    ].transform(
-        [str(selected_body)]
-    )[0]
+        engine_type_encoded = encoders["Engine Type"].transform(
+            [str(selected_engine_type)]
+        )[0]
 
-
-    engine_type_encoded = encoders[
-        "Engine Type"
-    ].transform(
-        [str(selected_engine_type)]
-    )[0]
+        registration_encoded = encoders["Registration"].transform(
+            [str(selected_registration)]
+        )[0]
 
 
-    registration_encoded = encoders[
-        "Registration"
-    ].transform(
-        [str(selected_registration)]
-    )[0]
+        # ----------------------------------------------------
+        # CREATE INPUT DATAFRAME
+        # ----------------------------------------------------
+
+        input_data = {
+            "Brand": brand_encoded,
+            "Body": body_encoded,
+            "Mileage": mileage,
+            "EngineV": engine_volume,
+            "Engine Type": engine_type_encoded,
+            "Registration": registration_encoded,
+            "Year": year
+        }
+
+        input_df = pd.DataFrame([input_data])
 
 
-    # ----------------------------------------------------
-    # CREATE INPUT DATAFRAME
-    # ----------------------------------------------------
+        # Make sure feature order is exactly
+        # the same as training data
 
-    input_data = {
-
-        "Brand": brand_encoded,
-
-        "Body": body_encoded,
-
-        "Mileage": mileage,
-
-        "EngineV": engine_volume,
-
-        "Engine Type": engine_type_encoded,
-
-        "Registration": registration_encoded,
-
-        "Year": year
-    }
+        input_df = input_df[X.columns]
 
 
-    input_df = pd.DataFrame(
-        [input_data]
-    )
+        # ----------------------------------------------------
+        # SELECT MODEL
+        # ----------------------------------------------------
+
+        model_map = {
+            "Linear Regression": linear_reg,
+            "Ridge Regression": ridge_reg,
+            "Lasso Regression": lasso_reg
+        }
+
+        selected_model = model_map[model_choice]
 
 
-    # Ensure same feature order
-    # as training data
+        # ----------------------------------------------------
+        # PREDICT
+        # ----------------------------------------------------
 
-    input_df = input_df[
-        X.columns
-    ]
-
-
-    # ----------------------------------------------------
-    # SELECT MODEL
-    # ----------------------------------------------------
-
-    model_map = {
-
-        "Linear Regression":
-            linear_reg,
-
-        "Ridge Regression":
-            ridge_reg,
-
-        "Lasso Regression":
-            lasso_reg
-    }
+        log_prediction = selected_model.predict(
+            input_df
+        )[0]
 
 
-    selected_model = model_map[
-        model_choice
-    ]
+        # ----------------------------------------------------
+        # CONVERT LOG PRICE TO ORIGINAL PRICE
+        # ----------------------------------------------------
+
+        predicted_price = np.exp(log_prediction)
 
 
-    # ----------------------------------------------------
-    # PREDICT LOG PRICE
-    # ----------------------------------------------------
+        # ----------------------------------------------------
+        # DISPLAY RESULT
+        # ----------------------------------------------------
 
-    log_prediction = selected_model.predict(
-        input_df
-    )[0]
+        st.markdown("---")
 
-
-    # ----------------------------------------------------
-    # CONVERT LOG PRICE TO ORIGINAL PRICE
-    # ----------------------------------------------------
-
-    predicted_price = np.exp(
-        log_prediction
-    )
+        st.subheader("🎯 Prediction Result")
 
 
-    # ----------------------------------------------------
-    # RESULT
-    # ----------------------------------------------------
-
-    st.markdown("---")
-
-    st.subheader(
-        "🎯 Prediction Result"
-    )
+        result_col1, result_col2 = st.columns(2)
 
 
-    result_col1, result_col2 = st.columns(2)
+        with result_col1:
+
+            st.metric(
+                "💰 Estimated Car Price",
+                f"${predicted_price:,.2f}"
+            )
 
 
-    with result_col1:
+        with result_col2:
 
-        st.metric(
-            "💰 Estimated Car Price",
-            f"${predicted_price:,.2f}"
+            st.metric(
+                "🤖 Model Used",
+                model_choice
+            )
+
+
+        st.success(
+            "✅ Prediction completed successfully!"
         )
 
 
-    with result_col2:
-
-        st.metric(
-            "🤖 Model Used",
-            model_choice
+        st.info(
+            f"Log Price Prediction: {log_prediction:.4f}"
         )
 
 
-    st.success(
-        "✅ Prediction completed successfully!"
-    )
+        # ----------------------------------------------------
+        # SELECTED CAR DETAILS
+        # ----------------------------------------------------
+
+        st.markdown(
+            "### 🚘 Selected Car Details"
+        )
 
 
-    st.info(
-        f"Log Price Prediction: "
-        f"{log_prediction:.4f}"
-    )
+        details_df = pd.DataFrame({
+
+            "Feature": [
+                "Brand",
+                "Body Type",
+                "Mileage",
+                "Engine Volume",
+                "Engine Type",
+                "Registration",
+                "Year"
+            ],
+
+            "Value": [
+                selected_brand,
+                selected_body,
+                f"{mileage:,} km",
+                f"{engine_volume:.1f} L",
+                selected_engine_type,
+                selected_registration,
+                year
+            ]
+        })
 
 
-    # ----------------------------------------------------
-    # SELECTED CAR DETAILS
-    # ----------------------------------------------------
-
-    st.markdown(
-        "### 🚘 Selected Car Details"
-    )
+        st.dataframe(
+            details_df,
+            hide_index=True,
+            use_container_width=True
+        )
 
 
-    details_df = pd.DataFrame({
+    except Exception as e:
 
-        "Feature": [
+        st.error(
+            "❌ Prediction failed."
+        )
 
-            "Brand",
-            "Body Type",
-            "Mileage",
-            "Engine Volume",
-            "Engine Type",
-            "Registration",
-            "Year"
-        ],
-
-        "Value": [
-
-            selected_brand,
-
-            selected_body,
-
-            f"{mileage:,} km",
-
-            f"{engine_volume:.1f} L",
-
-            selected_engine_type,
-
-            selected_registration,
-
-            year
-        ]
-    })
-
-
-    st.dataframe(
-        details_df,
-        hide_index=True,
-        use_container_width=True
-    )
-
-
-except Exception as e:
-
-    st.error(
-        "❌ Prediction failed."
-    )
-
-    st.code(
-        str(e)
-    )
+        st.code(
+            str(e)
+        )
 
 
 # ============================================================
-
 # FOOTER
-
 # ============================================================
 
 st.markdown("---")
 
 st.caption(
-"Built with ❤️ using Streamlit · "
-"Linear Regression · Ridge Regression · "
-"Lasso Regression"
+    "Built with ❤️ using Streamlit · "
+    "Linear Regression · Ridge Regression · "
+    "Lasso Regression"
 )
