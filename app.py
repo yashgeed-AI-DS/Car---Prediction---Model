@@ -537,7 +537,7 @@ X_test
 def get_metrics(y_true, y_pred):
 
 
-return {
+    return {
     "R² Score": round(
         r2_score(
             y_true,
