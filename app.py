@@ -61,7 +61,6 @@ help="Upload the car sales dataset used for training."
 
 if uploaded_file is None:
 
-```
 st.info(
     "👈 Please upload your car dataset from the sidebar."
 )
