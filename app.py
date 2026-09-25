@@ -923,7 +923,7 @@ if submitted:
     # ENCODE CATEGORICAL VALUES
     # ----------------------------------------------------
 
-    brand_encoded = encoders[
+        brand_encoded = encoders[
         "Brand"
     ].transform(
         [str(selected_brand)]
