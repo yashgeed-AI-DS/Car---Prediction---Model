@@ -317,7 +317,7 @@ st.write(
 st.code(
     ", ".join(categorical_columns)
 )
-```
+
 
 st.success(
 f"Dataset ready: {df.shape[0]} rows × "
@@ -372,7 +372,7 @@ plt.close(fig1)
 
 with col2:
 
-```
+
     st.markdown("**Log Price Distribution**")
 
 fig2, ax2 = plt.subplots()
