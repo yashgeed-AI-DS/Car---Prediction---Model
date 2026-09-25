@@ -172,4 +172,3 @@ st.markdown("---")
 st.caption(
     "Built with ❤️ using Python, Pandas, NumPy, Scikit-learn and Streamlit"
 )
-```
