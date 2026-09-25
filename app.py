@@ -31,10 +31,12 @@ layout="wide"
 # ============================================================
 
 st.title("🚗 Used Car Price Prediction")
+
 st.markdown(
 "**Linear Regression vs Ridge vs Lasso** — "
 "Predict the price of a used car using Machine Learning."
 )
+
 st.markdown("---")
 
 # ============================================================
@@ -59,7 +61,10 @@ help="Upload the car sales dataset used for training."
 
 if uploaded_file is None:
 
-    st.info("👈 Please upload your car dataset from the sidebar.")
+```
+st.info(
+    "👈 Please upload your car dataset from the sidebar."
+)
 
 st.markdown("""
 ### Expected Columns
@@ -78,7 +83,7 @@ st.markdown("""
 """)
 
 st.stop()
-
+```
 
 # ============================================================
 
@@ -88,7 +93,7 @@ st.stop()
 
 @st.cache_data
 def load_data(file):
-    return pd.read_csv(file)
+return pd.read_csv(file)
 
 df_raw = load_data(uploaded_file)
 
@@ -117,13 +122,36 @@ if col not in df_raw.columns
 
 if missing_columns:
 
-
-    st.error(
-    f"❌ Missing columns in dataset: {', '.join(missing_columns)}"
+```
+st.error(
+    f"❌ Missing columns in dataset: "
+    f"{', '.join(missing_columns)}"
 )
 
 st.stop()
+```
 
+# ============================================================
+
+# CONVERT IMPORTANT NUMERIC COLUMNS
+
+# ============================================================
+
+numeric_columns = [
+"Price",
+"Mileage",
+"EngineV",
+"Year"
+]
+
+for column in numeric_columns:
+
+```
+df_raw[column] = pd.to_numeric(
+    df_raw[column],
+    errors="coerce"
+)
+```
 
 # ============================================================
 
@@ -150,6 +178,7 @@ f"{df_raw.shape[1]} columns"
 # ============================================================
 
 st.markdown("---")
+
 st.subheader("🔧 Data Preprocessing")
 
 df = df_raw.copy()
@@ -159,8 +188,9 @@ with st.expander(
 expanded=False
 ):
 
+```
 # --------------------------------------------------------
-# STEP 1: Missing Values
+# STEP 1: REMOVE MISSING PRICE / ENGINEV
 # --------------------------------------------------------
 
 before = len(df)
@@ -178,7 +208,23 @@ st.write(
 
 
 # --------------------------------------------------------
-# STEP 2: EngineV Outliers
+# STEP 2: REMOVE INVALID PRICE
+# --------------------------------------------------------
+
+before = len(df)
+
+df = df[df["Price"] > 0]
+
+removed = before - len(df)
+
+st.write(
+    f"✅ **Step 2:** Removed {removed} rows "
+    "where Price was zero or negative."
+)
+
+
+# --------------------------------------------------------
+# STEP 3: REMOVE ENGINEV OUTLIERS
 # --------------------------------------------------------
 
 before = len(df)
@@ -188,25 +234,27 @@ df = df[df["EngineV"] <= 10]
 removed = before - len(df)
 
 st.write(
-    f"✅ **Step 2:** Removed {removed} rows "
+    f"✅ **Step 3:** Removed {removed} rows "
     "where EngineV > 10."
 )
 
 
 # --------------------------------------------------------
-# STEP 3: Log Transformation
+# STEP 4: LOG TRANSFORMATION
 # --------------------------------------------------------
 
-df["Log_price"] = np.log(df["Price"])
+df["Log_price"] = np.log(
+    df["Price"]
+)
 
 st.write(
-    "✅ **Step 3:** Applied log transformation "
+    "✅ **Step 4:** Applied log transformation "
     "`Log_price = log(Price)`."
 )
 
 
 # --------------------------------------------------------
-# SAVE ORIGINAL CATEGORICAL VALUES
+# CATEGORICAL COLUMNS
 # --------------------------------------------------------
 
 categorical_columns = [
@@ -216,7 +264,11 @@ categorical_columns = [
     "Registration"
 ]
 
-# Store category values BEFORE encoding
+
+# --------------------------------------------------------
+# SAVE ORIGINAL CATEGORIES
+# --------------------------------------------------------
+
 category_options = {}
 
 for column in categorical_columns:
@@ -231,7 +283,7 @@ for column in categorical_columns:
 
 
 # --------------------------------------------------------
-# STEP 4: DROP MODEL AND PRICE
+# STEP 5: DROP MODEL AND PRICE
 # --------------------------------------------------------
 
 df = df.drop(
@@ -239,12 +291,13 @@ df = df.drop(
 )
 
 st.write(
-    "✅ **Step 4:** Dropped Model and original Price."
+    "✅ **Step 5:** Dropped `Model` and "
+    "original `Price`."
 )
 
 
 # --------------------------------------------------------
-# STEP 5: ENCODE CATEGORICAL COLUMNS
+# STEP 6: LABEL ENCODING
 # --------------------------------------------------------
 
 encoders = {}
@@ -254,19 +307,20 @@ for column in categorical_columns:
     encoder = LabelEncoder()
 
     df[column] = encoder.fit_transform(
-        df[column].astype(str)
+        df[column].fillna("Unknown").astype(str)
     )
 
     encoders[column] = encoder
 
 
 st.write(
-    "✅ **Step 5:** Label encoded categorical columns:"
+    "✅ **Step 6:** Label encoded categorical columns:"
 )
 
 st.code(
     ", ".join(categorical_columns)
 )
+```
 
 st.success(
 f"Dataset ready: {df.shape[0]} rows × "
@@ -280,20 +334,21 @@ f"{df.shape[1]} columns"
 # ============================================================
 
 st.markdown("---")
+
 st.subheader("📈 Exploratory Data Analysis")
 
 col1, col2 = st.columns(2)
 
-# ------------------------------------------------------------
+# ============================================================
 
 # PRICE DISTRIBUTION
 
-# ------------------------------------------------------------
+# ============================================================
 
 with col1:
 
-
-    st.markdown("**Price Distribution**")
+```
+st.markdown("**Price Distribution**")
 
 fig1, ax1 = plt.subplots()
 
@@ -309,16 +364,19 @@ ax1.set_title("Original Price Distribution")
 
 st.pyplot(fig1)
 
-# ------------------------------------------------------------
+plt.close(fig1)
+```
+
+# ============================================================
 
 # LOG PRICE DISTRIBUTION
 
-# ------------------------------------------------------------
+# ============================================================
 
 with col2:
 
-
-    st.markdown("**Log Price Distribution**")
+```
+st.markdown("**Log Price Distribution**")
 
 fig2, ax2 = plt.subplots()
 
@@ -334,12 +392,14 @@ ax2.set_title("Log Price Distribution")
 
 st.pyplot(fig2)
 
+plt.close(fig2)
+```
 
-# ------------------------------------------------------------
+# ============================================================
 
-# CORRELATION
+# CORRELATION HEATMAP
 
-# ------------------------------------------------------------
+# ============================================================
 
 st.markdown("**Correlation Heatmap**")
 
@@ -348,7 +408,7 @@ figsize=(10, 5)
 )
 
 sns.heatmap(
-df.corr(),
+df.corr(numeric_only=True),
 annot=True,
 fmt=".2f",
 cmap="coolwarm",
@@ -357,6 +417,8 @@ ax=ax3
 
 st.pyplot(fig3)
 
+plt.close(fig3)
+
 # ============================================================
 
 # MODEL PARAMETERS
@@ -364,6 +426,7 @@ st.pyplot(fig3)
 # ============================================================
 
 st.markdown("---")
+
 st.subheader("🤖 Model Training & Comparison")
 
 st.sidebar.header("⚙️ Model Parameters")
@@ -456,11 +519,17 @@ y_train
 
 # ============================================================
 
-y_pred_linear = linear_reg.predict(X_test)
+y_pred_linear = linear_reg.predict(
+X_test
+)
 
-y_pred_ridge = ridge_reg.predict(X_test)
+y_pred_ridge = ridge_reg.predict(
+X_test
+)
 
-y_pred_lasso = lasso_reg.predict(X_test)
+y_pred_lasso = lasso_reg.predict(
+X_test
+)
 
 # ============================================================
 
@@ -473,7 +542,10 @@ def get_metrics(y_true, y_pred):
 ```
 return {
     "R² Score": round(
-        r2_score(y_true, y_pred),
+        r2_score(
+            y_true,
+            y_pred
+        ),
         4
     ),
 
@@ -496,27 +568,26 @@ return {
         4
     )
 }
-
+```
 
 metrics = {
 
-"Linear Regression":
-    get_metrics(
-        y_test,
-        y_pred_linear
-    ),
+```
+"Linear Regression": get_metrics(
+    y_test,
+    y_pred_linear
+),
 
-"Ridge Regression":
-    get_metrics(
-        y_test,
-        y_pred_ridge
-    ),
+"Ridge Regression": get_metrics(
+    y_test,
+    y_pred_ridge
+),
 
-"Lasso Regression":
-    get_metrics(
-        y_test,
-        y_pred_lasso
-    )
+"Lasso Regression": get_metrics(
+    y_test,
+    y_pred_lasso
+)
+```
 
 }
 
@@ -530,6 +601,12 @@ columns={
 }
 )
 )
+
+# ============================================================
+
+# MODEL COMPARISON
+
+# ============================================================
 
 st.markdown("### 📋 Model Comparison")
 
@@ -554,6 +631,7 @@ f"🏆 Highest R² Score: **{best_model}**"
 # ============================================================
 
 st.markdown("---")
+
 st.subheader("📉 Actual vs Predicted")
 
 fig, axes = plt.subplots(
@@ -601,12 +679,10 @@ ax.plot(
         y_test.min(),
         y_test.max()
     ],
-
     [
         y_test.min(),
         y_test.max()
     ],
-
     "r--",
     lw=2
 )
@@ -631,6 +707,8 @@ plt.tight_layout()
 
 st.pyplot(fig)
 
+plt.close(fig)
+
 # ============================================================
 
 # INTERACTIVE CAR PRICE PREDICTION
@@ -644,7 +722,8 @@ st.subheader(
 )
 
 st.markdown(
-"Enter the details of the car using the interactive controls below."
+"Enter the details of the car using "
+"the interactive controls below."
 )
 
 # ============================================================
@@ -663,12 +742,14 @@ st.markdown(
 )
 
 
+# --------------------------------------------------------
+# ROW 1
+# --------------------------------------------------------
+
 col1, col2, col3 = st.columns(3)
 
 
-# --------------------------------------------------------
 # BRAND
-# --------------------------------------------------------
 
 with col1:
 
@@ -678,9 +759,7 @@ with col1:
     )
 
 
-# --------------------------------------------------------
 # BODY
-# --------------------------------------------------------
 
 with col2:
 
@@ -690,9 +769,7 @@ with col2:
     )
 
 
-# --------------------------------------------------------
 # ENGINE TYPE
-# --------------------------------------------------------
 
 with col3:
 
@@ -703,11 +780,13 @@ with col3:
 
 
 # --------------------------------------------------------
-# REGISTRATION
+# ROW 2
 # --------------------------------------------------------
 
 col1, col2, col3 = st.columns(3)
 
+
+# REGISTRATION
 
 with col1:
 
@@ -717,9 +796,7 @@ with col1:
     )
 
 
-# --------------------------------------------------------
 # MILEAGE
-# --------------------------------------------------------
 
 with col2:
 
@@ -746,9 +823,7 @@ with col2:
     )
 
 
-# --------------------------------------------------------
 # ENGINE VOLUME
-# --------------------------------------------------------
 
 with col3:
 
@@ -768,6 +843,14 @@ with col3:
 
     engine_default = float(
         df_raw["EngineV"].median()
+    )
+
+    engine_default = min(
+        max(
+            engine_default,
+            engine_min
+        ),
+        engine_max
     )
 
     engine_volume = st.slider(
@@ -795,7 +878,6 @@ year_default = int(
     df_raw["Year"].median()
 )
 
-
 year = st.slider(
     "📅 Manufacturing Year",
     min_value=year_min,
@@ -821,6 +903,10 @@ model_choice = st.selectbox(
 st.markdown("")
 
 
+# --------------------------------------------------------
+# SUBMIT BUTTON
+# --------------------------------------------------------
+
 submitted = st.form_submit_button(
     "🚀 Predict Car Price",
     use_container_width=True
@@ -839,7 +925,7 @@ if submitted:
 try:
 
     # ----------------------------------------------------
-    # ENCODE SELECTED CATEGORICAL VALUES
+    # ENCODE CATEGORICAL VALUES
     # ----------------------------------------------------
 
     brand_encoded = encoders[
@@ -897,8 +983,8 @@ try:
     )
 
 
-    # Make absolutely sure columns are
-    # in exactly the same order as training data
+    # Ensure same feature order
+    # as training data
 
     input_df = input_df[
         X.columns
@@ -946,7 +1032,7 @@ try:
 
 
     # ----------------------------------------------------
-    # DISPLAY RESULT
+    # RESULT
     # ----------------------------------------------------
 
     st.markdown("---")
@@ -987,7 +1073,7 @@ try:
 
 
     # ----------------------------------------------------
-    # SHOW SELECTED DETAILS
+    # SELECTED CAR DETAILS
     # ----------------------------------------------------
 
     st.markdown(
@@ -998,6 +1084,7 @@ try:
     details_df = pd.DataFrame({
 
         "Feature": [
+
             "Brand",
             "Body Type",
             "Mileage",
