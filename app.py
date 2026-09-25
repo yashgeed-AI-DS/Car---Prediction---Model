@@ -662,7 +662,7 @@ models_plot
 ):
 
 
-ax.scatter(
+    ax.scatter(
     y_test,
     y_pred,
     alpha=0.4,
