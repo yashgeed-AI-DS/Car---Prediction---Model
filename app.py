@@ -917,7 +917,7 @@ submitted = st.form_submit_button(
 if submitted:
 
 
-try:
+    try:
 
     # ----------------------------------------------------
     # ENCODE CATEGORICAL VALUES
