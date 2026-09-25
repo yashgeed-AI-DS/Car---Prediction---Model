@@ -59,7 +59,6 @@ help="Upload the car sales dataset used for training."
 
 if uploaded_file is None:
 
-```
 st.info("👈 Please upload your car dataset from the sidebar.")
 
 st.markdown("""
@@ -79,7 +78,7 @@ st.markdown("""
 """)
 
 st.stop()
-```
+
 
 # ============================================================
 
@@ -118,13 +117,13 @@ if col not in df_raw.columns
 
 if missing_columns:
 
-```
+
 st.error(
     f"❌ Missing columns in dataset: {', '.join(missing_columns)}"
 )
 
 st.stop()
-```
+
 
 # ============================================================
 
@@ -160,7 +159,6 @@ with st.expander(
 expanded=False
 ):
 
-```
 # --------------------------------------------------------
 # STEP 1: Missing Values
 # --------------------------------------------------------
@@ -269,7 +267,6 @@ st.write(
 st.code(
     ", ".join(categorical_columns)
 )
-```
 
 st.success(
 f"Dataset ready: {df.shape[0]} rows × "
@@ -295,7 +292,7 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-```
+
 st.markdown("**Price Distribution**")
 
 fig1, ax1 = plt.subplots()
@@ -311,7 +308,6 @@ ax1.set_ylabel("Count")
 ax1.set_title("Original Price Distribution")
 
 st.pyplot(fig1)
-```
 
 # ------------------------------------------------------------
 
@@ -321,7 +317,7 @@ st.pyplot(fig1)
 
 with col2:
 
-```
+
 st.markdown("**Log Price Distribution**")
 
 fig2, ax2 = plt.subplots()
@@ -337,7 +333,7 @@ ax2.set_ylabel("Count")
 ax2.set_title("Log Price Distribution")
 
 st.pyplot(fig2)
-```
+
 
 # ------------------------------------------------------------
 
@@ -500,11 +496,10 @@ return {
         4
     )
 }
-```
+
 
 metrics = {
 
-```
 "Linear Regression":
     get_metrics(
         y_test,
@@ -522,7 +517,6 @@ metrics = {
         y_test,
         y_pred_lasso
     )
-```
 
 }
 
