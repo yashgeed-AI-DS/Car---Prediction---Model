@@ -190,7 +190,7 @@ expanded=False
 # STEP 1: REMOVE MISSING PRICE / ENGINEV
 # --------------------------------------------------------
 
-before = len(df)
+    before = len(df)
 
 df = df.dropna(
     subset=["Price", "EngineV"]
@@ -344,8 +344,8 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-```
-st.markdown("**Price Distribution**")
+
+    st.markdown("**Price Distribution**")
 
 fig1, ax1 = plt.subplots()
 
@@ -362,7 +362,7 @@ ax1.set_title("Original Price Distribution")
 st.pyplot(fig1)
 
 plt.close(fig1)
-```
+
 
 # ============================================================
 
@@ -373,7 +373,7 @@ plt.close(fig1)
 with col2:
 
 ```
-st.markdown("**Log Price Distribution**")
+    st.markdown("**Log Price Distribution**")
 
 fig2, ax2 = plt.subplots()
 
