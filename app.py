@@ -88,7 +88,7 @@ st.stop()
 
 @st.cache_data
 def load_data(file):
-return pd.read_csv(file)
+    return pd.read_csv(file)
 
 df_raw = load_data(uploaded_file)
 
